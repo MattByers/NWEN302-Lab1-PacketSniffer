@@ -1,4 +1,4 @@
-/*
+git /*
  * sniffer.c
  *
  * By David C Harrison (david.harrison@ecs.vuw.ac.nz) July 2015
@@ -34,6 +34,172 @@
 
 /* ethernet headers are always exactly 14 bytes [1] */
 #define SIZE_ETHERNET 14
+
+void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet);
+void ipv4(u_char *args, const struct pcap_pkthdr *header, const u_char *packet);
+void print_hex_ascii_line(const u_char *payload, int len, int offset);
+void print_payload(const u_char *payload, int len);
+
+
+/* declare pointers to packet headers */
+const struct ether_header *ethernet;  /* The ethernet header [1] */
+const struct ip *ip;              /* The IP header */
+const struct ip6_hdr *ip6;			/*The IPV6 Header*/
+const struct tcphdr *tcp;            /* The TCP header */
+const struct udphdr *udp;		/*The UDP header*/
+const struct icmphdr *icmp;		/*The ICMP header*/
+const char *payload;                    /* Packet payload */
+
+int size_ip;
+int size_ip6;
+int size_tcp;
+int size_udp;
+int size_icmp;
+int size_payload;
+
+
+
+void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet) {
+  static int count = 1;                   /* packet counter */
+
+  printf("\nPacket number %d:\n", count);
+  
+  ethernet = (struct ether_header*)(packet);
+  
+  //Check the ethernet type, to see if the packet is IPV6 or IPV4
+  if(ethernet->ether_type == ntohs(ETHERTYPE_IPV6)) {
+    printf("IPV4 Packet\n");
+    //ipv6(args, header, packet);
+  }
+  else if(ethernet->ether_type == ntohs(ETHERTYPE_IP)) {
+    printf("IPV6 Packet\n");
+    ipv4(args, header, packet);
+  }
+  else {
+    printf("Unknown Packet\n"); 
+  }
+  
+  count++;
+  
+}
+
+
+void ipv4(u_char *args, const struct pcap_pkthdr *header, const u_char *packet) {
+  ip = (struct ip*)(packet + SIZE_ETHERNET);
+  size_ip = sizeof(struct ip);
+  if (size_ip < 20) {
+    printf("   * Invalid IP header length: %u bytes\n", size_ip);
+    return;
+  }
+  
+  printf("       From: %s\n", inet_ntoa(ip->ip_src));
+  printf("         To: %s\n", inet_ntoa(ip->ip_dst));
+
+  /* determine protocol */
+  switch(ip->ip_p) {
+    
+    case IPPROTO_TCP:
+      printf("   Protocol: TCP\n");
+      tcp = (struct tcphdr*)(packet + SIZE_ETHERNET + size_ip);
+      size_tcp = sizeof(struct tcphdr);
+      if (size_tcp < 20) {
+	printf("   * Invalid TCP header length: %u bytes\n", size_tcp);
+	return;
+      }
+      
+      printf("   Src port: %d\n", ntohs(tcp->th_sport));
+      printf("   Dst port: %d\n", ntohs(tcp->th_dport));
+      
+      payload = (u_char *)(packet + SIZE_ETHERNET + size_ip + size_tcp);
+      size_payload = ntohs(ip->ip_len) - (size_ip + size_tcp);
+      break;
+      
+    case IPPROTO_UDP:
+      printf("   Protocol: UDP\n");
+      udp = (struct udphdr*)(packet + SIZE_ETHERNET + size_ip);
+      size_udp = sizeof(struct udphdr);
+      if(size_udp < 8){
+	printf("   * Invalid UDP header length: %u bytes\n", size_udp);
+	return;
+      }
+      
+      printf("   Src port: %d\n", ntohs(udp->uh_sport));
+      printf("   Dst port: %d\n", ntohs(udp->uh_dport));
+      
+      payload = (u_char *)(packet + SIZE_ETHERNET + size_ip + size_udp);
+      size_payload = ntohs(ip->ip_len) - (size_ip + size_udp);
+      break;
+      
+    case IPPROTO_ICMP:
+      printf("   Protocol: ICMP\n");
+      icmp = (struct icmphdr*)(packet + SIZE_ETHERNET + size_ip);
+      size_icmp = sizeof(struct icmphdr);
+      if(size_icmp < 8){
+	printf("   * Invalid UDP header length: %u bytes\n", size_udp);
+	return;
+      }
+      
+      //Switch on the ICMP types, lots of types not added here.
+      switch(icmp->type){
+	
+	case 0:
+	  printf("    Type: Echo Reply\n");
+	  break;
+	case 3:
+	  printf("    Type: Destination Unreachable\n");
+	  break;
+	case 4:
+	  printf("    Type: Source Quench (Deprecated)\n");
+	  break;
+	//More Types here, but havent added them....
+	default:
+	  printf("    Type: Unknown");
+	  break;
+	  
+      }
+      
+      payload = (u_char *)(packet + SIZE_ETHERNET + size_ip + size_udp);
+      size_payload = ntohs(ip->ip_len) - (size_ip + size_udp);
+      break;
+      
+    case IPPROTO_IP:
+      printf("   Protocol: IP\n");
+      return;
+      
+    default:
+      printf("   Protocol: unknown\n");
+      return;
+  }
+
+
+
+  /*
+   * Print payload data; it might be binary, so don't just
+   * treat it as a string.
+   */
+  if (size_payload > 0) {
+    printf("   Payload (%d bytes):\n", size_payload);
+    print_payload(payload, size_payload);
+  }
+
+  return;
+}
+
+
+// void ipv6(u_char *args, const struct pcap_pkthdr *header, const u_char *packet) {
+//   ip6 = (struct ip6_hdr*)(packet + SIZE_ETHERNET);
+//   size_ip6 = sizeof(struct ip6_hdr);
+//   if (size_ip6 < 40) {
+//     printf("   * Invalid IPV6 header length: %u bytes\n", size_ip6);
+//     return;
+//   }
+//   
+//   printf("       From: %s\n", ip6->ip6_src);
+//   printf("         To: %s\n", ip6->ip6_dst);
+//   
+//   
+// }
+
 
 //Sourced from: http://www.tcpdump.org/sniffex.c
 /*
@@ -127,124 +293,6 @@ void print_payload(const u_char *payload, int len) {
 			break;
 		}
 	}
-
-  return;
-}
-
-
-
-
-void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet) {
-  static int count = 1;                   /* packet counter */
-
-  /* declare pointers to packet headers */
-  const struct ether_header *ethernet;  /* The ethernet header [1] */
-  const struct ip *ip;              /* The IP header */
-  const struct tcphdr *tcp;            /* The TCP header */
-  const struct udphdr *udp;		/*The UDP header*/
-  const struct icmphdr *icmp;		/*The ICMP header*/
-  const char *payload;                    /* Packet payload */
-
-  int size_ip;
-  int size_tcp;
-  int size_udp;
-  int size_icmp;
-  int size_payload;
-
-  printf("\nPacket number %d:\n", count);
-  count++;
-
-  /* define ethernet header */
-  ethernet = (struct ether_header*)(packet);
-
-  /* define/compute ip header offset */
-  ip = (struct ip*)(packet + SIZE_ETHERNET);
-  size_ip = sizeof(struct ip);
-  if (size_ip < 20) {
-    printf("   * Invalid IP header length: %u bytes\n", size_ip);
-    return;
-  }
-
-  /* print source and destination IP addresses */
-  printf("       From: %s\n", inet_ntoa(ip->ip_src));
-  printf("         To: %s\n", inet_ntoa(ip->ip_dst));
-
-  /* determine protocol */
-  switch(ip->ip_p) {
-    
-    case IPPROTO_TCP:
-      printf("   Protocol: TCP\n");
-      tcp = (struct tcphdr*)(packet + SIZE_ETHERNET + size_ip);
-      size_tcp = sizeof(struct tcphdr);
-      if (size_tcp < 20) {
-	printf("   * Invalid TCP header length: %u bytes\n", size_tcp);
-	return;
-      }
-      
-      printf("   Src port: %d\n", ntohs(tcp->th_sport));
-      printf("   Dst port: %d\n", ntohs(tcp->th_dport));
-      
-      /* define/compute tcp payload (segment) offset */
-      payload = (u_char *)(packet + SIZE_ETHERNET + size_ip + size_tcp);
-      
-      /* compute tcp payload (segment) size */
-      size_payload = ntohs(ip->ip_len) - (size_ip + size_tcp);
-      break;
-      
-    case IPPROTO_UDP:
-      printf("   Protocol: UDP\n");
-      udp = (struct udphdr*)(packet + SIZE_ETHERNET + size_ip);
-      size_udp = sizeof(struct udphdr);
-      if(size_udp < 8){
-	printf("   * Invalid UDP header length: %u bytes\n", size_udp);
-	return;
-      }
-      
-      printf("   Src port: %d\n", ntohs(udp->uh_sport));
-      printf("   Dst port: %d\n", ntohs(udp->uh_dport));
-      
-            /* define/compute tcp payload (segment) offset */
-      payload = (u_char *)(packet + SIZE_ETHERNET + size_ip + size_udp);
-      
-      /* compute tcp payload (segment) size */
-      size_payload = ntohs(ip->ip_len) - (size_ip + size_udp);
-      break;
-      
-    case IPPROTO_ICMP:
-      printf("   Protocol: ICMP\n");
-      icmp = (struct icmphdr*)(packet + SIZE_ETHERNET + size_ip);
-      size_icmp = sizeof(struct icmphdr);
-      if(size_icmp < 8){
-	printf("   * Invalid UDP header length: %u bytes\n", size_udp);
-	return;
-      }
-      
-      /* define/compute tcp payload (segment) offset */
-      payload = (u_char *)(packet + SIZE_ETHERNET + size_ip + size_udp);
-      
-      /* compute tcp payload (segment) size */
-      size_payload = ntohs(ip->ip_len) - (size_ip + size_udp);
-      return;
-      
-    case IPPROTO_IP:
-      printf("   Protocol: IP\n");
-      return;
-      
-    default:
-      printf("   Protocol: unknown\n");
-      return;
-  }
-
-
-
-  /*
-   * Print payload data; it might be binary, so don't just
-   * treat it as a string.
-   */
-  if (size_payload > 0) {
-    printf("   Payload (%d bytes):\n", size_payload);
-    print_payload(payload, size_payload);
-  }
 
   return;
 }

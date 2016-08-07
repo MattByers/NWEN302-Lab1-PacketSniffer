@@ -69,7 +69,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
   //Check the ethernet type, to see if the packet is IPV6 or IPV4
   if(ethernet->ether_type == ntohs(ETHERTYPE_IPV6)) {
     printf("IPV4 Packet\n");
-    //ipv6(args, header, packet);
+    ipv6(args, header, packet);
   }
   else if(ethernet->ether_type == ntohs(ETHERTYPE_IP)) {
     printf("IPV6 Packet\n");
@@ -186,19 +186,19 @@ void ipv4(u_char *args, const struct pcap_pkthdr *header, const u_char *packet) 
 }
 
 
-// void ipv6(u_char *args, const struct pcap_pkthdr *header, const u_char *packet) {
-//   ip6 = (struct ip6_hdr*)(packet + SIZE_ETHERNET);
-//   size_ip6 = sizeof(struct ip6_hdr);
-//   if (size_ip6 < 40) {
-//     printf("   * Invalid IPV6 header length: %u bytes\n", size_ip6);
-//     return;
-//   }
-//
-//   printf("       From: %s\n", ip6->ip6_src);
-//   printf("         To: %s\n", ip6->ip6_dst);
-//
-//
-// }
+void ipv6(u_char *args, const struct pcap_pkthdr *header, const u_char *packet) {
+  ip6 = (struct ip6_hdr*)(packet + SIZE_ETHERNET);
+  size_ip6 = sizeof(struct ip6_hdr);
+  if (size_ip6 < 40) {
+    printf("   * Invalid IPV6 header length: %u bytes\n", size_ip6);
+    return;
+  }
+
+  printf("       From: %s\n", ip6->ip6_src);
+  printf("         To: %s\n", ip6->ip6_dst);
+
+
+}
 
 
 //Sourced from: http://www.tcpdump.org/sniffex.c

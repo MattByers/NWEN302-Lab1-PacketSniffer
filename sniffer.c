@@ -1,4 +1,4 @@
-git /*
+/*
  * sniffer.c
  *
  * By David C Harrison (david.harrison@ecs.vuw.ac.nz) July 2015
@@ -63,9 +63,9 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
   static int count = 1;                   /* packet counter */
 
   printf("\nPacket number %d:\n", count);
-  
+
   ethernet = (struct ether_header*)(packet);
-  
+
   //Check the ethernet type, to see if the packet is IPV6 or IPV4
   if(ethernet->ether_type == ntohs(ETHERTYPE_IPV6)) {
     printf("IPV4 Packet\n");
@@ -76,11 +76,11 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
     ipv4(args, header, packet);
   }
   else {
-    printf("Unknown Packet\n"); 
+    printf("Unknown Packet\n");
   }
-  
+
   count++;
-  
+
 }
 
 
@@ -91,13 +91,13 @@ void ipv4(u_char *args, const struct pcap_pkthdr *header, const u_char *packet) 
     printf("   * Invalid IP header length: %u bytes\n", size_ip);
     return;
   }
-  
+
   printf("       From: %s\n", inet_ntoa(ip->ip_src));
   printf("         To: %s\n", inet_ntoa(ip->ip_dst));
 
   /* determine protocol */
   switch(ip->ip_p) {
-    
+
     case IPPROTO_TCP:
       printf("   Protocol: TCP\n");
       tcp = (struct tcphdr*)(packet + SIZE_ETHERNET + size_ip);
@@ -106,14 +106,14 @@ void ipv4(u_char *args, const struct pcap_pkthdr *header, const u_char *packet) 
 	printf("   * Invalid TCP header length: %u bytes\n", size_tcp);
 	return;
       }
-      
+
       printf("   Src port: %d\n", ntohs(tcp->th_sport));
       printf("   Dst port: %d\n", ntohs(tcp->th_dport));
-      
+
       payload = (u_char *)(packet + SIZE_ETHERNET + size_ip + size_tcp);
       size_payload = ntohs(ip->ip_len) - (size_ip + size_tcp);
       break;
-      
+
     case IPPROTO_UDP:
       printf("   Protocol: UDP\n");
       udp = (struct udphdr*)(packet + SIZE_ETHERNET + size_ip);
@@ -122,14 +122,14 @@ void ipv4(u_char *args, const struct pcap_pkthdr *header, const u_char *packet) 
 	printf("   * Invalid UDP header length: %u bytes\n", size_udp);
 	return;
       }
-      
+
       printf("   Src port: %d\n", ntohs(udp->uh_sport));
       printf("   Dst port: %d\n", ntohs(udp->uh_dport));
-      
+
       payload = (u_char *)(packet + SIZE_ETHERNET + size_ip + size_udp);
       size_payload = ntohs(ip->ip_len) - (size_ip + size_udp);
       break;
-      
+
     case IPPROTO_ICMP:
       printf("   Protocol: ICMP\n");
       icmp = (struct icmphdr*)(packet + SIZE_ETHERNET + size_ip);
@@ -138,10 +138,10 @@ void ipv4(u_char *args, const struct pcap_pkthdr *header, const u_char *packet) 
 	printf("   * Invalid UDP header length: %u bytes\n", size_udp);
 	return;
       }
-      
+
       //Switch on the ICMP types, lots of types not added here.
       switch(icmp->type){
-	
+
 	case 0:
 	  printf("    Type: Echo Reply\n");
 	  break;
@@ -155,17 +155,17 @@ void ipv4(u_char *args, const struct pcap_pkthdr *header, const u_char *packet) 
 	default:
 	  printf("    Type: Unknown");
 	  break;
-	  
+
       }
-      
+
       payload = (u_char *)(packet + SIZE_ETHERNET + size_ip + size_udp);
       size_payload = ntohs(ip->ip_len) - (size_ip + size_udp);
       break;
-      
+
     case IPPROTO_IP:
       printf("   Protocol: IP\n");
       return;
-      
+
     default:
       printf("   Protocol: unknown\n");
       return;
@@ -193,11 +193,11 @@ void ipv4(u_char *args, const struct pcap_pkthdr *header, const u_char *packet) 
 //     printf("   * Invalid IPV6 header length: %u bytes\n", size_ip6);
 //     return;
 //   }
-//   
+//
 //   printf("       From: %s\n", ip6->ip6_src);
 //   printf("         To: %s\n", ip6->ip6_dst);
-//   
-//   
+//
+//
 // }
 
 

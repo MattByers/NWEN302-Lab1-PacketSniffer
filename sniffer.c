@@ -68,11 +68,11 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 
   //Check the ethernet type, to see if the packet is IPV6 or IPV4
   if(ethernet->ether_type == ntohs(ETHERTYPE_IPV6)) {
-    printf("IPV4 Packet\n");
+    printf("IPV6 Packet\n");
     ipv6(args, header, packet);
   }
   else if(ethernet->ether_type == ntohs(ETHERTYPE_IP)) {
-    printf("IPV6 Packet\n");
+    printf("IPV4 Packet\n");
     ipv4(args, header, packet);
   }
   else {
